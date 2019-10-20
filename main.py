@@ -71,7 +71,7 @@ def runRegression(tick, model):
     
     # Plot the average close value
     plt.figure(figsize=(10,5))
-    plt.tight_layout()
+    #plt.tight_layout()
     seabornInstance.distplot(data['Adj Close'])
     plt.show()
     
@@ -120,19 +120,37 @@ def runRegression(tick, model):
     # RMSE is a measure of how spread out these residuals are. In other words, 
     # it tells you how concentrated the data is around the line of best fit.
     print('Root Mean Squared Error: ', np.sqrt(metrics.mean_squared_error(Y_test, predicted)))
+    return X_test, Y_test
 
 
 def predictDay(tick):
-    # predict today's opening price
+    # Get today's opening price
     aaplQuoteTable = si.get_quote_table(tick, dict_result = False)
     today_price_orig = aaplQuoteTable.iloc[12]['value']
     today_price = pd.Series([today_price_orig], index=[0])
     today_price = today_price.values.reshape(-1,1)
+    # Predict the closing price based on the opening price
     predicted = aaplRegressor.predict(today_price)
     print("Today's opening price ", tick, ": ", today_price_orig)
     print("Today's predicted adj closing price: ", round(predicted.flatten()[0], 2))
+    # find the difference in the prediction
     difference = round(predicted.flatten()[0],2) - today_price[0][0]
     print("Difference: ", difference)
+def predictDayVal(tick, val):
+    # predict today's opening price
+    today_price_orig = val
+    today_price = val.reshape(1,-1)
+    predicted = aaplRegressor.predict(today_price)
+    print("Today's opening price ", tick, ": ", today_price_orig)
+    print("Today's predicted adj closing price: ", round(predicted.flatten()[0], 2))
+    difference = round(predicted.flatten()[0],2) - today_price
+    print("Predicted difference: ", difference)
+    if (difference > 0):
+        print("Buy stock")
+        return True
+    else:
+        print("Don't buy stock")
+        return False
 
 
 aaplRegressor = LinearRegression()
@@ -144,5 +162,19 @@ runRegression("IBM", ibmRegressor)
 predictDay('IBM')
 
 msftRegressor = LinearRegression()
-runRegression("MSFT", msftRegressor)
+X_test, Y_test = runRegression("MSFT", msftRegressor)
 predictDay("MSFT")
+
+input("Press enter to continue")
+
+# Treat each entry in our test set as a new day
+# For every day predict the adj closing based on the opening
+i = 0
+for x in X_test:
+    buyStock = predictDayVal('MSFT', x)
+    print("Today's actual adj closing price: ", Y_test[i])
+    actualDifference = Y_test[i] - x
+    print("Actual difference: ", actualDifference)
+    print("\n")
+    i = i+1
+    
